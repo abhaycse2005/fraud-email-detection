@@ -1,0 +1,636 @@
+
+{% extends "base.html" %}
+
+{% block title %}
+New Analysis - Fraud Email Detection
+{% endblock %}
+
+{% block body %}
+
+<div class="layout">
+
+    {% include "sidebar.html" %}
+
+    <main class="main analysis-page">
+
+        <span class="eyebrow">AI-powered scanner</span>
+
+        <h1 class="page-title">Analyze an Email</h1>
+
+        <p class="page-sub">
+            Check sender identity, subject intent and email content before you trust a message.
+        </p>
+
+        {% set gmail_connected = gmail_connection is not none %}
+        <section class="card personal-gmail-card" aria-labelledby="personal-gmail-title">
+            <div class="personal-gmail-copy">
+                <span class="gmail-icon" aria-hidden="true">G</span>
+                <div>
+                    <h2 id="personal-gmail-title">Personal Gmail Protection</h2>
+                    <p>Connect your own Gmail account to scan and classify inbox emails as Safe, Suspicious, or Fraudulent. Access is read-only.</p>
+                </div>
+            </div>
+            <div class="personal-gmail-controls">
+                <span class="gmail-scan-status" id="personal-gmail-connection-status" aria-live="polite">
+                    <i class="gmail-status-dot"></i>
+                    {% if not gmail_connected %}Gmail not connected{% elif gmail_connection.get('needs_reauth') %}Reconnect Gmail to continue{% else %}Connected{% if gmail_connection.get('email') %}: {{ gmail_connection.get('email') }}{% endif %}{% endif %}
+                </span>
+                <div class="personal-gmail-actions">
+                    <a class="btn btn-outline" href="{{ url_for('email_account') }}">Connect Personal Gmail</a>
+                    <button class="btn" type="button" id="scan-personal-gmail" {% if not gmail_connected or gmail_connection.get('needs_reauth') %}disabled{% endif %}>Scan Gmail Now</button>
+                </div>
+            </div>
+            <div class="personal-gmail-progress" id="personal-gmail-progress" hidden aria-live="polite">
+                <div class="personal-gmail-progress-copy"><strong id="personal-gmail-scan-label">Ready</strong><span id="personal-gmail-progress-count"></span></div>
+                <progress id="personal-gmail-progress-bar" max="100" value="0"></progress>
+            </div>
+            <div class="personal-gmail-links">
+                <a href="{{ url_for('history') }}">Gmail scan history</a>
+                <a href="{{ url_for('dashboard') }}#notifications-title">Notifications</a>
+                <a href="{{ url_for('email_account') }}">Account and automatic scan settings</a>
+            </div>
+        </section>
+
+        <div class="analysis-layout">
+
+            <section class="card analyzer-card">
+
+                <div class="section-heading">
+
+                    <div>
+                        <h2>Email inspection</h2>
+                        <p>Paste the received email details below.</p>
+                    </div>
+
+                    <span class="scanner-status">
+                        <i></i>
+                        Scanner online
+                    </span>
+
+                </div>
+
+                <form id="analyzeForm">
+
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="form-grid">
+
+                        <div>
+
+                            <label for="sender_email">
+                                From (Sender Email)
+                            </label>
+
+                            <input
+                                type="email"
+                                id="sender_email"
+                                placeholder="sender@example.com"
+                                autocomplete="off"
+                            >
+
+                            <small>
+                                Used to identify suspicious or spoofed domains.
+                            </small>
+
+                        </div>
+
+                        <div>
+
+                            <label for="subject">
+                                Email Subject
+                            </label>
+
+                            <input
+                                type="text"
+                                id="subject"
+                                placeholder="Enter the received subject"
+                                autocomplete="off"
+                            >
+
+                            <small>
+                                A subject alone never decides the result.
+                            </small>
+
+                        </div>
+
+                    </div>
+
+                    <label for="content">
+                        Email Content
+                    </label>
+
+                    <textarea
+                        id="content"
+                        placeholder="Paste the complete email message here..."
+                        required
+                    ></textarea>
+
+                    <div class="sample-row">
+
+                        <span>Try a demo:</span>
+
+                        <button
+                            type="button"
+                            class="sample-btn"
+                            data-sample="safe"
+                        >
+                            Safe meeting
+                        </button>
+
+                        <button
+                            type="button"
+                            class="sample-btn"
+                            data-sample="fraud"
+                        >
+                            Phishing email
+                        </button>
+
+                    </div>
+
+                    <button
+                        class="btn analyze-button"
+                        type="submit"
+                    >
+
+                        <span class="button-label">
+                            Run Security Analysis
+                        </span>
+
+                        <span
+                            class="button-loader"
+                            aria-hidden="true"
+                        ></span>
+
+                    </button>
+
+                </form>
+
+                <div
+                    id="resultBox"
+                    class="result-box"
+                    aria-live="polite"
+                ></div>
+
+
+
+            </section>
+
+            <aside class="analysis-guide">
+
+                <section class="card guide-card">
+
+                    <span class="guide-icon">◈</span>
+
+                    <h3>What we inspect</h3>
+
+                    <ul>
+
+                        <li>
+
+                            <b>Sender identity</b>
+
+                            <span>
+                                Invalid format, risky domains and impersonation attempts.
+                            </span>
+
+                        </li>
+
+                        <li>
+
+                            <b>Message intent</b>
+
+                            <span>
+                                Links, credential requests and high-risk actions.
+                            </span>
+
+                        </li>
+
+                        <li>
+
+                            <b>Contextual urgency</b>
+
+                            <span>
+                                “Urgent” becomes risky only with other phishing signs.
+                            </span>
+
+                        </li>
+
+                    </ul>
+
+                </section>
+
+                <section class="card privacy-card">
+
+                    <span>Privacy note</span>
+
+                    <p>
+                        Submitted email data is used only for your detection history
+                        in this application.
+                    </p>
+
+                </section>
+
+            </aside>
+
+        </div>
+
+    </main>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+
+const escapeHTML = value =>
+    String(value).replace(
+        /[&<>"']/g,
+        char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char])
+    );
+
+
+document
+    .getElementById('analyzeForm')
+    .addEventListener('submit', async function (event) {
+
+        event.preventDefault();
+
+        const result = document.getElementById('resultBox');
+
+        const button = this.querySelector(
+            'button[type="submit"]'
+        );
+
+        const payload = {
+            sender_email: sender_email.value,
+            subject: subject.value,
+            content: content.value
+        };
+
+        button.disabled = true;
+
+        button.classList.add('is-loading');
+
+        result.className =
+            'result-box show is-analyzing';
+
+        result.innerHTML = `
+            <div class="analysis-status">
+
+                <span class="scan-pulse"></span>
+
+                <div>
+
+                    <strong>Gemini analysis in progress</strong>
+
+                    <small>
+                        Reviewing sender, message context and available security metadata.
+                    </small>
+
+                </div>
+
+            </div>
+        `;
+
+        try {
+
+            const response = await fetch(
+                '/api/analyze',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            const data = await response.json();
+
+            result.classList.remove('is-analyzing');
+
+            if (data.error) {
+                const diagnostics = [];
+                if (data.error_category) {
+                    diagnostics.push(`Category: ${data.error_category}`);
+                }
+                if (Number.isInteger(data.provider_http_status)) {
+                    diagnostics.push(`Gemini HTTP ${data.provider_http_status}`);
+                }
+                if (Number.isInteger(response.status)) {
+                    diagnostics.push(`App HTTP ${response.status}`);
+                }
+                result.textContent = diagnostics.length
+                    ? `${data.error} (${diagnostics.join('; ')})`
+                    : data.error;
+
+                return;
+
+            }
+
+            const reasons =
+                data.signals && data.signals.length
+                    ? `
+                        <ul class="signal-list">
+
+                            ${data.signals
+                                .map(
+                                    signal =>
+                                        `<li>${escapeHTML(signal)}</li>`
+                                )
+                                .join('')
+                            }
+
+                        </ul>
+                    `
+                    : `
+                        <p class="muted-copy">
+                            No specific warning signal was found.
+                        </p>
+                    `;
+
+            const explanationTitle =
+                data.prediction === 'Safe'
+                    ? 'Assessment details'
+                    : 'Why was this email flagged?';
+
+            result.innerHTML = `
+
+                <div class="result-heading">
+
+                    <div>
+
+                        <span class="result-kicker">
+                            Security assessment
+                        </span>
+
+                        <h3>
+                            ${escapeHTML(data.prediction)}
+                        </h3>
+
+                    </div>
+
+                    <span
+                        class="badge badge-${escapeHTML(
+                            data.risk_level.toLowerCase()
+                        )}"
+                    >
+                        ${escapeHTML(data.risk_level)} risk
+                    </span>
+
+                </div>
+
+                <p class="confidence-copy">
+                    Risk score:
+                    <b>${escapeHTML(data.risk_score)}/100</b>
+
+                    <small>
+                        (severity score, not a probability)
+                    </small>
+
+                </p>
+
+                <details class="explanation-details">
+                    <summary>Explain Result</summary>
+                    <p><b>Final classification:</b> ${escapeHTML(data.prediction)}. This is the application’s result after applying local evidence checks to Gemini’s assessment.</p>
+                    <p><b>Gemini AI assessment (${escapeHTML(data.gemini_prediction || 'Unavailable')}):</b> ${escapeHTML(data.gemini_explanation || 'No Gemini explanation was returned.')}</p>
+                    <p><b>Local evidence observed:</b></p>
+                    ${data.rule_based_signals && data.rule_based_signals.length
+                        ? `<ul>${data.rule_based_signals.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul>`
+                        : '<p>No decisive local warning signal was detected. This is not proof that the message is legitimate.</p>'}
+                    ${data.gemini_indicators && data.gemini_indicators.length
+                        ? `<p><b>Gemini suspected indicators (not independently verified):</b></p><ul>${data.gemini_indicators.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul>`
+                        : ''}
+                    ${data.security_metadata && data.security_metadata.authentication
+                        ? `<p><b>Authentication-Results header reports:</b> ${escapeHTML(Object.entries(data.security_metadata.authentication).map(([name, value]) => `${name.toUpperCase()}: ${value}`).join(', '))}. Passing SPF, DKIM, or DMARC checks does not guarantee that the email content or request is legitimate.</p>`
+                        : ''}
+                    <p><b>Recommended action:</b> ${escapeHTML(data.recommended_action || 'Treat the message as unverified and confirm unexpected requests independently.')}</p>
+                </details>
+
+                <p class="confidence-copy">
+                    Gemini assessment is shown separately above; the final label uses Gemini plus local evidence checks. The local ML model was not used for this live result.
+                </p>
+
+                ${
+                    data.confidence !== null
+                        ? `
+                            <p class="confidence-copy">
+                                AI confidence estimate (not calibrated):
+                                <b>${escapeHTML(data.confidence)}%</b>
+                            </p>
+                        `
+                        : `
+                            <p class="confidence-copy">
+                                Treat this email as unverified. Safe means no strong warning was found, not verified safe.
+                            </p>
+                        `
+                }
+
+                ${
+                    data.threat_category
+                        ? `
+                            <p class="confidence-copy">
+                                Threat category:
+                                <b>
+                                    ${escapeHTML(data.threat_category)}
+                                </b>
+                            </p>
+                        `
+                        : ''
+                }
+
+                <details class="explanation-details">
+
+                    <summary>
+                        ${explanationTitle}
+                    </summary>
+
+                    ${reasons}
+
+                </details>
+
+            `;
+
+        } catch {
+
+            result.classList.remove('is-analyzing');
+
+            result.innerHTML = `
+                <span class="result-error">
+                    Analysis could not be completed. Please try again.
+                </span>
+            `;
+
+        } finally {
+
+            button.disabled = false;
+
+            button.classList.remove('is-loading');
+
+        }
+
+    });
+
+
+const examples = {
+
+    safe: {
+
+        sender: 'project.team@gmail.com',
+
+        subject: 'Come to urgent meeting',
+
+        content:
+            'Hi team, please join the project review meeting today at 3 PM in the conference room. Thank you.'
+
+    },
+
+    fraud: {
+
+        sender: 'support@paypal-check.xyz',
+
+        subject: 'Urgent: verify your account',
+
+        content:
+            'Your account will be blocked. Click https://example.invalid/login and enter your password immediately.'
+
+    }
+
+};
+
+
+document
+    .querySelectorAll('[data-sample]')
+    .forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => {
+
+                const example =
+                    examples[button.dataset.sample];
+
+                sender_email.value =
+                    example.sender;
+
+                subject.value =
+                    example.subject;
+
+                content.value =
+                    example.content;
+
+                content.focus();
+
+            }
+        );
+
+    });
+
+
+const gmailScanButton = document.getElementById('scan-personal-gmail');
+if (gmailScanButton) {
+    const progress = document.getElementById('personal-gmail-progress');
+    const label = document.getElementById('personal-gmail-scan-label');
+    const count = document.getElementById('personal-gmail-progress-count');
+    const bar = document.getElementById('personal-gmail-progress-bar');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    let polling = false;
+
+    const refreshGmailStatus = async () => {
+        const response = await fetch('{{ url_for("api_gmail_scan_status") }}', { credentials: 'same-origin' });
+        if (!response.ok) throw new Error('status unavailable');
+        const state = await response.json();
+        progress.hidden = false;
+        if (!state.connected) {
+            label.textContent = 'Connect Gmail to begin scanning';
+            count.textContent = '';
+            return false;
+        }
+        if (state.needs_reauth || state.status === 'reauthorization_required') {
+            label.textContent = 'Reconnect Gmail to resume scanning';
+            count.textContent = '';
+            gmailScanButton.disabled = true;
+            return false;
+        }
+        if (state.status === 'running') {
+            label.textContent = state.mode === 'historical' ? 'Scanning initial inbox history' : 'Checking for new inbox emails';
+            const attempted = state.attempted_count ?? state.progress;
+            const successful = state.successful_count ?? 0;
+            const failed = state.failed_count ?? 0;
+            const deferred = state.deferred_count ?? failed;
+            const counts = `${attempted} Gmail messages attempted | ${successful} classified | ${failed} failed | ${deferred} deferred`;
+            count.textContent = state.total
+                ? `${counts} (of about ${state.total})`
+                : counts;
+            if (state.total) bar.value = Math.min(100, Math.round(state.progress * 100 / state.total));
+            return true;
+        }
+        if (state.status === 'error') {
+            const category = state.error_category || state.error_code;
+            label.textContent = category && category.startsWith('gemini_')
+                ? 'Scan completed with some email analyses deferred. Retry to process them.'
+                : 'Scan stopped. Please try again or check the Gmail connection.';
+            const httpStatus = state.http_status ? ` (HTTP ${state.http_status})` : '';
+            const successful = state.successful_count ?? state.last_scan_count ?? 0;
+            const failed = state.failed_count ?? 0;
+            const deferred = state.deferred_count ?? failed;
+            const summary = `${successful} classified | ${failed} failed | ${deferred} deferred for retry`;
+            count.textContent = category ? `Failure category: ${category}${httpStatus} · ${summary}` : summary;
+            return false;
+        }
+        if (state.status === 'paused') {
+            label.textContent = 'Automatic scanning is paused. Resume it in Gmail settings.';
+            count.textContent = '';
+            return false;
+        }
+        label.textContent = state.status === 'success' ? 'Scan complete' : 'Ready to scan';
+        count.textContent = state.status === 'success' ? `${state.last_scan_count} emails processed` : '';
+        if (state.status === 'success') bar.value = 100;
+        return false;
+    };
+
+    const poll = async () => {
+        while (polling) {
+            const stillRunning = await refreshGmailStatus();
+            if (!stillRunning) break;
+            await new Promise(resolve => setTimeout(resolve, 1200));
+        }
+        polling = false;
+        gmailScanButton.disabled = false;
+    };
+
+    gmailScanButton.addEventListener('click', async () => {
+        gmailScanButton.disabled = true;
+        progress.hidden = false;
+        label.textContent = 'Starting Gmail scan…';
+        count.textContent = '';
+        try {
+            const response = await fetch('{{ url_for("api_start_gmail_scan") }}', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': csrfToken }
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Could not start scan.');
+            polling = true;
+            await poll();
+        } catch (error) {
+            label.textContent = error.message || 'Scan could not be started.';
+            gmailScanButton.disabled = false;
+        }
+    });
+    refreshGmailStatus().then(state => { if (state) { polling = true; poll(); } }).catch(() => {});
+}
+
+
+</script>
+
+{% endblock %}

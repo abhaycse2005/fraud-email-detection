@@ -1,0 +1,31 @@
+<aside class="sidebar">
+  <div>
+    <a class="brand" href="{{ url_for('dashboard') }}" aria-label="Fraud Email Detection dashboard">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48" role="presentation">
+          <path class="shield" d="M24 4 41 11v11c0 11-7 18-17 22C14 40 7 33 7 22V11z" />
+          <path class="shield-inner" d="M24 10 35 15v7c0 7.5-4.3 12.7-11 16-6.7-3.3-11-8.5-11-16v-7z" />
+          <path class="brand-mark-line" d="m17 24 5 5 10-11" />
+        </svg>
+      </div>
+      <div><span>FRAUD EMAIL</span><small>DETECTION PLATFORM</small></div>
+    </a>
+    <div class="workspace-label">Workspace</div>
+    <nav class="nav">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active=='dashboard' else '' }}"><span class="nav-icon">&#8962;</span> Dashboard</a>
+      <a href="{{ url_for('new_analysis') }}" class="{{ 'active' if active=='new_analysis' else '' }}"><span class="nav-icon">&#10022;</span> New Analysis</a>
+      <a href="{{ url_for('email_account') }}" class="{{ 'active' if active=='email_account' else '' }}"><span class="nav-icon">&#9993;</span> Connect Gmail</a>
+      <a href="{{ url_for('history') }}" class="{{ 'active' if active=='history' else '' }}"><span class="nav-icon">&#128338;</span> History</a>
+      <a href="{{ url_for('account_security') }}" class="{{ 'active' if active=='account_security' else '' }}"><span class="nav-icon">&#128274;</span> Account Security</a>
+      {% if session.role == 'admin' %}<a href="{{ url_for('admin') }}" class="{{ 'active' if active=='admin' else '' }}"><span class="nav-icon">&#9881;</span> Admin</a>{% endif %}
+    </nav>
+  </div>
+  <div class="sidebar-footer">
+    <div class="security-status"><span></span> Protection active</div>
+    <div class="user-chip"><div class="avatar">{{ user_name[0] if user_name else 'U' }}</div><div><div style="color:var(--text);font-weight:700;">{{ user_name }}</div><div>{{ session.role | default('user') | capitalize }}</div></div></div>
+    <form method="post" action="{{ url_for('logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline">Logout</button>
+    </form>
+  </div>
+</aside>

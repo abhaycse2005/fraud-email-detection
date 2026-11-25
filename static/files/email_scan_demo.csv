@@ -1,0 +1,4 @@
+sender_email,subject,content
+team@example.test,Weekly project meeting,"Hi team, the weekly project review is scheduled for Thursday at 10 AM. Please bring the latest notes."
+alerts@service-update.xyz,New account notice,Please review this notice: https://example.invalid/account
+security@paypal-account-check.xyz,Immediate account verification required,Your account may be suspended. Click https://example.invalid/verify and enter your password immediately.

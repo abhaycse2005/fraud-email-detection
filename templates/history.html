@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}History - Fraud Email Detection{% endblock %}
+{% block body %}
+<div class="layout">
+  {% include "sidebar.html" %}
+  <main class="main">
+    <h1 class="page-title">Detection History</h1>
+    <p class="page-sub">All emails analyzed so far.</p>
+
+    <div class="card table-card">
+      <table>
+        <tr><th>Subject</th><th>From</th><th>Prediction</th><th>Risk</th><th>Risk score</th><th>Explanation</th><th>Threat</th><th>Date</th></tr>
+        {% for d in detections %}
+        <tr id="detection-{{ d.id }}">
+          <td>{{ d.subject or '(no subject)' }}</td>
+          <td>{{ d.sender_email or '-' }}</td>
+          <td><span class="badge badge-{{ d.prediction | lower }}">{{ d.prediction }}</span></td>
+          <td><span class="badge badge-{{ d.risk_level | lower }}">{{ d.risk_level }}</span></td>
+          <td>{{ d.risk_score ~ '/100' if d.risk_score is not none else '-' }}</td>
+          <td><details class="explanation-details"><summary>Explain Result</summary>
+            <p><b>Final classification:</b> {{ d.prediction }}. This is the application result after local evidence checks.</p>
+            <p><b>Gemini AI assessment:</b> {{ d.gemini_prediction or 'Unavailable' }}.</p>
+            <p><b>Explanation:</b> {{ d.simple_explanation }}</p>
+            <p><b>Local evidence observed:</b></p>
+            <ul>{% for signal in d.rule_based_signals or [] %}<li>{{ signal }}</li>{% else %}<li>No decisive local warning signal was detected. This is not proof that the message is legitimate.</li>{% endfor %}</ul>
+            {% if d.gemini_indicators %}<p><b>Gemini suspected indicators (not independently verified):</b></p><ul>{% for signal in d.gemini_indicators %}<li>{{ signal }}</li>{% endfor %}</ul>{% endif %}
+            {% if d.security_metadata and d.security_metadata.authentication %}
+            <p><b>Authentication-Results header reports:</b> SPF {{ d.security_metadata.authentication.spf }}, DKIM {{ d.security_metadata.authentication.dkim }}, DMARC {{ d.security_metadata.authentication.dmarc }}. Passing these checks does not guarantee that the email content or request is legitimate.</p>
+            {% endif %}
+            {% if d.recommended_action %}<p><b>Recommended action:</b> {{ d.recommended_action }}</p>{% endif %}
+          </details></td>
+          <td>{{ d.threat_category or '-' }}</td>
+          <td>{{ d.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="color:var(--text-dim);">No detections yet. Run a New Analysis first.</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </main>
+</div>
+{% endblock %}

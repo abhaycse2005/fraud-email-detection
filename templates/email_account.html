@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Connect Gmail - Fraud Email Detection{% endblock %}
+{% block body %}
+<div class="layout">{% include "sidebar.html" %}<main class="main analysis-page">
+  <span class="eyebrow">Automatic inbox protection</span>
+  <h1 class="page-title">Connect Gmail</h1>
+  <p class="page-sub">Authorize read-only access, then let the scanner check recent inbox messages for fraud signals.</p>
+  <section class="card gmail-card">
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="gmail-flashes">{% for category, message in messages %}<p class="flash-message flash-{{ category }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% endwith %}
+    {% if connection %}
+      <div class="gmail-connected"><span class="gmail-status-dot"></span><div><strong>Gmail connected</strong><p>{{ connection.email }}</p></div></div>
+      <p class="gmail-copy">Automatic checks run about every 3 minutes while the scanner worker is running. The first scan checks up to 25 recent inbox messages; later scans follow new inbox mail and skip messages already analyzed.</p>
+      {% if connection.needs_reauth %}<p class="flash flash-error">Gmail authorization needs attention. Reconnect Gmail to resume scanning.</p>{% endif %}
+      <div class="gmail-scan-status"><strong>Automatic scanning: {{ 'Enabled' if auto_scan_enabled else 'Disabled' }}</strong><span>Status: {{ connection.scan_status or 'ready' }}</span><span>Last scan: {{ connection.last_scan_at.strftime('%Y-%m-%d %H:%M UTC') if connection.last_scan_at else 'Not scanned yet' }}</span>{% if connection.last_scan_error %}<span>Last issue: {{ connection.last_scan_error }}{% if connection.last_scan_error_category %} ({{ connection.last_scan_error_category }}){% endif %}{% if connection.last_scan_http_status %} HTTP {{ connection.last_scan_http_status }}{% endif %}</span>{% endif %}</div>
+      <form method="post" action="{{ url_for('gmail_auto_scan') }}" class="gmail-auto-scan-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="enabled" value="{{ '0' if auto_scan_enabled else '1' }}">
+        <button class="btn btn-outline" type="submit" {% if connection.needs_reauth %}disabled{% endif %}>{{ 'Disable automatic scanning' if auto_scan_enabled else 'Enable automatic scanning' }}</button>
+      </form>
+      <div class="gmail-actions"><form method="post" action="{{ url_for('gmail_scan_now') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn" type="submit">Scan inbox now</button></form><form method="post" action="{{ url_for('gmail_disconnect') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline" type="submit">Disconnect Gmail</button></form></div>
+      <p class="gmail-copy">Results appear in <a href="{{ url_for('history') }}">History</a> with their risk level, 0–100 severity score, and detection signals. The score is an assessment scale, not a probability.</p>
+    {% else %}
+      <div class="gmail-icon">&#9993;</div><h2>No Gmail account connected</h2>
+      <p class="gmail-copy">Connect one Gmail account to scan recent inbox messages automatically. The app asks for read-only access and never sends, deletes, or changes emails.</p>
+      {% if oauth_configured %}<a class="btn" href="{{ url_for('gmail_connect') }}">Connect with Google</a>{% else %}<div class="gmail-setup-needed"><strong>Setup needed</strong><p>Add Google OAuth credentials and an encryption key to your local <code>.env</code> file. Follow <a href="https://developers.google.com/workspace/gmail/api/quickstart/python" target="_blank" rel="noopener">Gmail API setup</a> and the project guide in <code>GMAIL_SETUP.md</code>.</p></div>{% endif %}
+    {% endif %}
+  </section>
+</main></div>
+{% endblock %}

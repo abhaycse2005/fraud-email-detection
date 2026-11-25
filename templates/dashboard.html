@@ -1,0 +1,114 @@
+{% extends "base.html" %}{% block title %}Dashboard - Fraud Email Detection{% endblock %}{% block body %}
+<div class="layout">{% include "sidebar.html" %}<main class="main reference-dashboard"><div class="topbar"><div class="search-wrap"><span>&#128269;</span><input class="search" data-global-search placeholder="Search anything..."><kbd>Ctrl + K</kbd></div><a href="{{ url_for('new_analysis') }}" class="btn">+ New Analysis</a></div>
+<div class="dashboard-top"><section><h1 class="page-title">Welcome back, {{ user_name }} &#128075;</h1><p class="page-sub">Here's what's happening with your email security today.</p><div class="grid grid-4 dashboard-stats">
+{% set stat_icons = [('purple','Total Analyses',stats.total,'mail'),('green','Safe Emails',stats.safe,'shield'),('yellow','Suspicious Emails',stats.suspicious,'alert'),('red','Fraudulent Emails',stats.fraudulent,'skull')] %}{% for color,label,value,icon in stat_icons %}<div class="card stat-card stat-card-{{ color }}"><div class="icon-badge icon-{{ color }}">{% if icon == 'mail' %}<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>{% elif icon == 'shield' %}<svg viewBox="0 0 24 24"><path d="M12 2.8 20 6v5.6c0 5.2-3.4 8.9-8 10.6-4.6-1.7-8-5.4-8-10.6V6l8-3.2Z"/><path d="m8.3 12 2.3 2.3 5-5"/></svg>{% elif icon == 'alert' %}<svg viewBox="0 0 24 24"><path d="M11 3.8 2.8 18a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13 3.8a1.2 1.2 0 0 0-2 0Z"/><path d="M12 9v4.5M12 17h.01"/></svg>{% else %}<svg viewBox="0 0 24 24"><path d="M12 2.8a8.2 8.2 0 0 0-7.8 10.8c.7 2 2.1 3.6 3.8 4.7V21h8v-2.7a8.2 8.2 0 0 0-4-15.5Z"/><path d="M8.2 11h.01M15.8 11h.01M9 15.5h6M10 18.5v2M14 18.5v2"/></svg>{% endif %}</div><div><div class="label">{{ label }}</div><div class="value" data-count="{{ value }}">{{ value }}</div><span class="stat-live"><i></i> Live data</span></div></div>{% endfor %}</div>
+<div class="card overview-card"><div class="overview-header"><div><span class="overview-kicker">Security activity</span><h3>Detection Overview</h3><p>Total emails scanned each day</p></div><div class="overview-status"><i></i><span>Live monitoring</span></div></div><div class="overview-summary"><div class="overview-metric metric-safe"><span>Safe</span><strong>{{ stats.safe }}</strong></div><div class="overview-metric metric-suspicious"><span>Suspicious</span><strong>{{ stats.suspicious }}</strong></div><div class="overview-metric metric-fraud"><span>Fraudulent</span><strong>{{ stats.fraudulent }}</strong></div><span class="overview-period">Last 7 days</span></div><div class="overview-chart" role="img" aria-label="Bar chart showing total emails scanned each day for the last seven days"><div class="daily-column-chart">{% for day in trend_days %}<div class="daily-column-group" title="{{ day.day_label }}: {{ day.total }} emails"><b>{{ day.total }}</b><div class="daily-bar-stage"><i style="height:{{ day.bar_height }}%"></i></div><span>{{ day.day_label }}</span></div>{% endfor %}</div></div></div></section>
+ </div>
+ <section class="card notification-card" aria-labelledby="notifications-title"><div class="card-title-row"><h3 id="notifications-title">Notifications <span class="notification-count" aria-label="unread notifications">{{ unread_notification_count }}</span></h3><a href="{{ url_for('history') }}">Full analysis history</a></div><div class="browser-notification-controls"><button type="button" class="btn btn-outline" id="enable-browser-notifications">Enable desktop alerts</button><span id="browser-notification-status" aria-live="polite">Optional. Alerts show a generic message only.</span></div>{% for notification in notifications %}<article class="notification-row {{ 'notification-unread' if not notification.is_read else '' }}"><div class="notification-copy"><strong>{{ notification.title }}</strong><span>{{ notification.created_at.strftime('%Y-%m-%d %H:%M UTC') if notification.created_at else '' }}</span><p>{{ notification.explanation or notification.message }}</p></div><div class="notification-actions"><a href="{{ url_for('history') }}#detection-{{ notification.id }}">View analysis in History</a>{% if not notification.is_read %}<form method="post" action="{{ url_for('notification_mark_read', notification_id=notification.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline" type="submit">Mark read</button></form>{% else %}<span>Read</span>{% endif %}</div></article>{% else %}<p class="empty-copy">No fraudulent Gmail detections to notify.</p>{% endfor %}</section>
+ {% if gmail_alerts %}<section class="card gmail-alert-card" role="status"><div class="card-title-row"><h3>Gmail security alerts</h3><a href="{{ url_for('email_account') }}">Manage Gmail</a></div><p>Recent emails from your connected inbox need attention:</p>{% for alert in gmail_alerts %}<div class="gmail-alert-row"><span class="badge badge-{{ alert.risk_level|lower }}">{{ alert.risk_level }}</span><strong>{{ alert.subject or '(no subject)' }}</strong><span>{{ alert.prediction }}</span><b>Risk score: {{ alert.risk_score ~ '/100' if alert.risk_score is not none else 'N/A' }}</b><details class="explanation-details"><summary>Why?</summary><ul>{% for signal in alert.signals or [] %}<li>{{ signal }}</li>{% else %}<li>No specific warning signal was recorded.</li>{% endfor %}</ul></details></div>{% endfor %}</section>{% endif %}
+ <div class="grid dashboard-mid"><div class="card risk-card"><h3>Risk Distribution</h3><canvas id="riskChart" height="180"></canvas></div><div class="card"><h3>Top Threat Categories</h3>{% for cat in stats.threat_categories %}<div class="threat-row"><div><span>{{ cat.threat_category }}</span><strong>{{ cat.c }}</strong></div><div class="progress-bar"><span data-pct="{{ cat.c / stats.total * 100 if stats.total else 0 }}"></span></div></div>{% else %}<p class="empty-copy">No threats detected yet.</p>{% endfor %}</div><div class="card recent-card"><div class="card-title-row"><h3>Recent Detections</h3><a href="{{ url_for('history') }}">View All</a></div><table><tr><th>Subject</th><th>Risk</th></tr>{% for d in recent %}<tr><td>{{ d.subject or '(no subject)' }}</td><td><span class="badge badge-{{ d.risk_level|lower }}">{{ d.risk_level }}</span></td></tr>{% else %}<tr><td colspan="2">No detections yet.</td></tr>{% endfor %}</table></div></div>
+ <div class="grid dashboard-bottom"><div class="card model-panel"><h3>Legacy local model evaluation</h3><p class="empty-copy">Historical cross-validation results for the preserved local model and dataset. New analyses use Gemini and are not represented by these scores.</p>{% for name,m in metrics.get('models',{}).items() %}<div class="model-score"><div><span>{{ name }}</span><strong>Accuracy: {{ m.accuracy }}% · Macro-F1: {{ m.macro_f1 }}%</strong></div><div class="progress-bar"><span data-pct="{{ m.accuracy }}"></span></div></div>{% else %}<p class="empty-copy">No historical model metrics are available.</p>{% endfor %}</div><div class="card system-panel"><h3>System Status</h3><div><span>Gemini API key</span><b>{{ 'Configured' if ai_configured else 'Not configured' }}</b></div><div><span>Database</span><b>Connected <i></i></b></div><div><span>API Service</span><b>Account quota dependent</b></div></div></div></main></div>{% endblock %}
+{% block scripts %}
+<script id="dashboard-data" type="application/json">{"risk":[{{ stats.safe }},{{ stats.suspicious }},{{ stats.fraudulent }}]}</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const data = JSON.parse(document.getElementById('dashboard-data').textContent);
+  const riskCanvas = document.getElementById('riskChart');
+
+  const notificationButton = document.getElementById('enable-browser-notifications');
+  const notificationStatus = document.getElementById('browser-notification-status');
+  if (notificationButton && notificationStatus) {
+    notificationButton.addEventListener('click', async function () {
+      if (!('Notification' in window)) {
+        notificationStatus.textContent = 'Desktop alerts are not supported by this browser.';
+        return;
+      }
+      let permission = Notification.permission;
+      if (permission === 'default') permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        notificationStatus.textContent = 'Desktop alerts are blocked. Dashboard notifications remain available.';
+        return;
+      }
+      notificationStatus.textContent = 'Desktop alerts enabled. Alerts contain no email details.';
+      checkForDesktopAlerts();
+    });
+    if ('Notification' in window && Notification.permission === 'granted') {
+      notificationStatus.textContent = 'Desktop alerts are enabled. Alerts contain no email details.';
+      checkForDesktopAlerts();
+    }
+    window.setInterval(checkForDesktopAlerts, 60000);
+  }
+
+  async function checkForDesktopAlerts() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      const response = await fetch('{{ url_for("api_unread_notifications") }}', { credentials: 'same-origin' });
+      if (!response.ok) return;
+      const data = await response.json();
+      (data.notifications || []).forEach(function (target) {
+        const key = `fraud-email-notification-${target.id}`;
+        if (sessionStorage.getItem(key)) return;
+        const alert = new Notification('Fraud Email Detection', {
+          body: 'A new email analysis is available. Open the dashboard to review it.'
+        });
+        alert.onclick = function () { window.open(target.url, '_blank', 'noopener'); };
+        sessionStorage.setItem(key, 'shown');
+      });
+    } catch (_) {
+      // The Atlas-backed dashboard notification list remains available if polling fails.
+    }
+  }
+
+  document.querySelectorAll('[data-pct]').forEach(element => {
+    element.style.width = `${Number(element.dataset.pct) || 0}%`;
+  });
+
+  function prepareCanvas(canvas) {
+    const ratio = window.devicePixelRatio || 1;
+    const bounds = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.round(bounds.width * ratio));
+    canvas.height = Math.max(1, Math.round(bounds.height * ratio));
+    const context = canvas.getContext('2d');
+    context.scale(ratio, ratio);
+    return [context, bounds.width, bounds.height];
+  }
+
+  function drawRisk() {
+    const [context, width, height] = prepareCanvas(riskCanvas);
+    const labels = ['Safe', 'Suspicious', 'Fraudulent'];
+    const colors = ['#3478e5', '#8ab4f2', '#245cae'];
+    const values = data.risk.map(Number);
+    const total = values.reduce((sum, value) => sum + value, 0);
+    const centerX = width / 2, centerY = height / 2 - 8, radius = Math.min(width, height) * .28;
+    context.clearRect(0, 0, width, height);
+    let angle = -Math.PI / 2;
+    const drawableValues = values;
+    const drawableTotal = total || 1;
+    drawableValues.forEach((value, index) => {
+      if (!total || !value) return;
+      const nextAngle = angle + Math.PI * 2 * value / drawableTotal;
+      context.beginPath(); context.strokeStyle = colors[index]; context.lineWidth = 20;
+      context.arc(centerX, centerY, radius, angle, nextAngle); context.stroke(); angle = nextAngle;
+    });
+    context.fillStyle = '#17345c'; context.font = '700 18px Space Grotesk, sans-serif'; context.textAlign = 'center';
+    context.fillText(String(total), centerX, centerY + 5);
+    context.fillStyle = '#38577e'; context.font = '600 11px DM Sans, sans-serif'; context.fillText('emails', centerX, centerY + 20);
+    context.font = '600 11px DM Sans, sans-serif';
+    const legendGap = 14, markerWidth = 8, markerGap = 5;
+    const legendWidths = labels.map(label => markerWidth + markerGap + context.measureText(label).width);
+    const legendWidth = legendWidths.reduce((sum, item) => sum + item, 0) + legendGap * (labels.length - 1);
+    let legendX = (width - legendWidth) / 2;
+    labels.forEach((label, index) => {
+      context.fillStyle = colors[index]; context.fillRect(legendX, height - 14, markerWidth, markerWidth);
+      context.fillStyle = '#294f7d'; context.textAlign = 'start'; context.fillText(label, legendX + markerWidth + markerGap, height - 6);
+      legendX += legendWidths[index] + legendGap;
+    });
+  }
+
+  function drawCharts() { drawRisk(); }
+  drawCharts();
+  window.addEventListener('resize', drawCharts);
+
+});
+</script>
+{% endblock %}

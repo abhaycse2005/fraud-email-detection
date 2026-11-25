@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Account Security - Fraud Email Detection{% endblock %}
+{% block body %}
+<div class="layout">
+  {% include "sidebar.html" %}
+  <main class="main">
+    <h1 class="page-title">Account Security</h1>
+    <p class="page-sub">Change the email address or password for your signed-in account.</p>
+
+    <div class="card" style="max-width:560px;">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, msg in messages %}
+          <div class="flash flash-{{ category }}">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+      <h3>Change email</h3>
+      <form method="POST" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="change_email">
+        <label for="new_email">New email</label>
+        <input id="new_email" type="email" name="new_email" placeholder="you@example.com" autocomplete="email" required>
+        <label for="email_current_password">Current password</label>
+        <input id="email_current_password" type="password" name="current_password" autocomplete="current-password" required>
+        <button class="btn" type="submit">Update Email</button>
+      </form>
+
+      <hr style="border:0;border-top:1px solid var(--border);margin:24px 0;">
+      <h3>Change password</h3>
+      <form method="POST" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="change_password">
+        <label for="current_password">Current password</label>
+        <input id="current_password" type="password" name="current_password" autocomplete="current-password" required>
+        <label for="new_password">New password</label>
+        <input id="new_password" type="password" name="new_password" autocomplete="new-password" minlength="8" required>
+        <label for="confirm_password">Confirm new password</label>
+        <input id="confirm_password" type="password" name="confirm_password" autocomplete="new-password" minlength="8" required>
+        <button class="btn" type="submit">Update Password</button>
+      </form>
+    </div>
+  </main>
+</div>
+{% endblock %}

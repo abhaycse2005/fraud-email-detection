@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Admin - Fraud Email Detection{% endblock %}
+{% block body %}
+<div class="layout">
+  {% include "sidebar.html" %}
+  <main class="main">
+    <h1 class="page-title">Admin Panel</h1>
+    <p class="page-sub">Manage users and view system-wide stats.</p>
+
+    <div class="grid grid-4" style="margin-bottom:18px;">
+      <div class="card stat-card"><div class="value">{{ stats.total }}</div><div class="label">Total Analyses</div></div>
+      <div class="card stat-card"><div class="value">{{ stats.safe }}</div><div class="label">Safe</div></div>
+      <div class="card stat-card"><div class="value">{{ stats.suspicious }}</div><div class="label">Suspicious</div></div>
+      <div class="card stat-card"><div class="value">{{ stats.fraudulent }}</div><div class="label">Fraudulent</div></div>
+    </div>
+
+    <div class="grid grid-2 admin-panels">
+      <div class="card table-card">
+        <h3>Registered Users</h3>
+        <table>
+          <tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr>
+          {% for u in users %}
+          <tr>
+            <td>{{ u.name }}</td><td>{{ u.email }}</td><td>{{ u.role }}</td><td>{{ u.created_at }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+      <div class="card">
+        <h3>Legacy local model evaluation</h3>
+        <p style="color:var(--text-dim); font-size:12px;">Historical scores from repeated 5-fold validation on {{ metrics.get('dataset_rows_after_deduplication', 0) }} labeled examples. These do not measure Gemini analyses.</p>
+        {% for name, m in metrics.get('models', {}).items() %}
+        <div style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span>{{ name }}{% if name == metrics.get('best_model') %} 🏆{% endif %}</span>
+            <span>Accuracy {{ m.accuracy }}% · Macro-F1 {{ m.macro_f1 }}%</span>
+          </div>
+          <div class="progress-bar" style="margin-top:6px;"><span style="width:{{ m.accuracy }}%;"></span></div>
+        </div>
+        {% else %}
+        <p style="color:var(--text-dim); font-size:13px;">Train the model first.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
